@@ -2300,13 +2300,52 @@
       function store(k, v) {try {localStorage.setItem(k, v);} catch (e) { } }
       function read(k) {try {return localStorage.getItem(k);} catch (e) {return null;} }
 
+      /* iOS Safari treats HTMLMediaElement.volume as read-only and defers to
+         the hardware buttons, so a page that only sets .volume plays at FULL
+         volume there. Detect that, and route through a Web Audio gain node —
+         which iOS does respect — only when it happens. Everywhere else keeps
+         the simple path, so nothing that works today can regress. */
+      var gain = null, actx = null, volumeIsHonoured = true;
+      (function detectVolume() {
+        try {
+          audio.volume = 0.123;
+          volumeIsHonoured = Math.abs(audio.volume - 0.123) < 0.001;
+          audio.volume = 1;
+        } catch (e) { volumeIsHonoured = false; }
+      })();
+
+      function ensureGain() {
+        if (gain || volumeIsHonoured) return gain;
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;                       // nothing better available
+        try {
+          actx = new AC();
+          var src = actx.createMediaElementSource(audio);
+          gain = actx.createGain();
+          gain.gain.value = 0;
+          src.connect(gain);
+          gain.connect(actx.destination);
+        } catch (e) { gain = null; actx = null; }
+        return gain;
+      }
+
+      function getVol() {
+        if (!volumeIsHonoured && gain) return gain.gain.value;
+        return audio.volume;
+      }
+      function setVol(v) {
+        v = Math.max(0, Math.min(1, v));
+        if (!volumeIsHonoured && ensureGain()) gain.gain.value = v;
+        else audio.volume = v;
+      }
+
       function fade(to, ms, done) {
         if (fadeFrame) cancelAnimationFrame(fadeFrame);
-        var from = audio.volume, t0 = null;
+        var from = getVol(), t0 = null;
         (function step(now) {
           if (t0 === null) t0 = now;
           var k = ms > 0 ? Math.min(1, (now - t0) / ms) : 1;
-          audio.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+          setVol(from + (to - from) * k);
           if (k < 1) fadeFrame = requestAnimationFrame(step);
           else {fadeFrame = null; if (done) done();}
         })(performance.now());
@@ -2317,11 +2356,23 @@
         musicBtn.setAttribute('aria-label', on ? 'Mute background music' : 'Play background music');
       }
 
-      function showTip() {
-        if (read('bgmTip') === 'seen') return;
+      function showTip(text, ms) {
+        clearTimeout(tipTimer);
+        tip.textContent = text;
         tip.classList.add('show');
+        if (ms) tipTimer = setTimeout(hideTip, ms);
+      }
+      /* shown once music is actually playing, so it never promises sound
+         that is not there */
+      function announceMute() {
+        if (read('bgmTip') === 'seen') { hideTip(); return; }
         store('bgmTip', 'seen');
-        tipTimer = setTimeout(hideTip, 7000);
+        showTip('Music on \u00b7 tap to mute', 7000);
+      }
+      /* when the browser refuses autoplay the page would otherwise sit
+         silent with no clue that there is music at all */
+      function inviteTap() {
+        showTip('Tap anywhere for music', 12000);
       }
       function hideTip() {
         clearTimeout(tipTimer);
@@ -2329,17 +2380,20 @@
       }
 
       function start(announce) {
-        audio.volume = 0;
+        setVol(0);
+        /* an AudioContext created outside a gesture starts suspended on iOS,
+           and start() is called from the gesture handler, so resume here */
+        if (!volumeIsHonoured) { ensureGain(); if (actx && actx.state === 'suspended') actx.resume(); }
         var play = audio.play();
         if (play && play.then) {
           return play.then(function () {
             wanted = true; reflect(true); fade(VOL, FADE_IN);
-            if (announce) showTip();
+            if (announce) announceMute();
             return true;
           }).catch(function () {wanted = false; reflect(false); return false;});
         }
         wanted = true; reflect(true); fade(VOL, FADE_IN);
-        if (announce) showTip();
+        if (announce) announceMute();
         return Promise.resolve(true);
       }
 
@@ -2384,7 +2438,7 @@
         /* Arm BEFORE attempting autoplay. Arming only after the rejection lands
            loses any tap or scroll made in that gap — which is most of them. */
         armFirstGesture();
-        start(true);
+        start(true).then(function (ok) { if (!ok) inviteTap(); });
       }
 
       /* never keep playing into a backgrounded tab */
