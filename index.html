@@ -199,9 +199,9 @@
       pointer-events: none
     }
 
-    /* a single quiet nudge so a first-time visitor notices the control */
+    /* keeps nudging until the visitor actually uses the control */
     .arrows button.hint {
-      animation: arrow-hint 2.6s ease-in-out 3
+      animation: arrow-hint 2.6s ease-in-out infinite
     }
 
     .arrows button.hint::before {
@@ -210,7 +210,7 @@
       inset: -1px;
       border-radius: 50%;
       border: 1px solid var(--navy);
-      animation: arrow-ring 2.6s ease-out 3;
+      animation: arrow-ring 2.6s ease-out infinite;
     }
 
     @keyframes arrow-hint {
@@ -2299,6 +2299,11 @@
 
       function store(k, v) {try {localStorage.setItem(k, v);} catch (e) { } }
       function read(k) {try {return localStorage.getItem(k);} catch (e) {return null;} }
+      /* The mute hint is per-visit, not per-lifetime: anyone who has music
+         start on them needs to know how to stop it, every time. A muted
+         choice still persists across visits — that stays in localStorage. */
+      function sstore(k, v) {try {sessionStorage.setItem(k, v);} catch (e) { } }
+      function sread(k) {try {return sessionStorage.getItem(k);} catch (e) {return null;} }
 
       /* iOS Safari treats HTMLMediaElement.volume as read-only and defers to
          the hardware buttons, so a page that only sets .volume plays at FULL
@@ -2365,8 +2370,8 @@
       /* shown once music is actually playing, so it never promises sound
          that is not there */
       function announceMute() {
-        if (read('bgmTip') === 'seen') { hideTip(); return; }
-        store('bgmTip', 'seen');
+        if (sread('bgmTip') === 'seen') { hideTip(); return; }
+        sstore('bgmTip', 'seen');
         showTip('Music on \u00b7 tap to mute', 7000);
       }
       /* when the browser refuses autoplay the page would otherwise sit
@@ -2447,19 +2452,27 @@
         else if (wanted) {audio.play().then(function () {fade(VOL, 400);}).catch(function () { });}
       });
 
-      /* nudge the down arrow a few times on arrival, then never again */
+      /* The arrows nudge until the visitor moves under their own steam —
+         using an arrow or scrolling — and give up after ten seconds either
+         way, so the page never ends up bobbing at someone indefinitely. The
+         scroll threshold stops a stray touch or a bounce from counting. */
       if (!reduce) {
         down.classList.add('hint');
+        var hintFrom = window.scrollY || 0;
+        var hintTimer = setTimeout(function () {dropHint();}, 10000);
         var dropHint = function () {
+          clearTimeout(hintTimer);
           down.classList.remove('hint');
-          window.removeEventListener('scroll', dropHint);
-          window.removeEventListener('pointerdown', dropHint);
-          window.removeEventListener('keydown', dropHint);
+          up.removeEventListener('click', dropHint);
+          down.removeEventListener('click', dropHint);
+          window.removeEventListener('scroll', onHintScroll);
         };
-        setTimeout(dropHint, 8200);
-        window.addEventListener('scroll', dropHint, {passive: true, once: true});
-        window.addEventListener('pointerdown', dropHint, {once: true});
-        window.addEventListener('keydown', dropHint, {once: true});
+        var onHintScroll = function () {
+          if (Math.abs((window.scrollY || 0) - hintFrom) > 40) dropHint();
+        };
+        up.addEventListener('click', dropHint);
+        down.addEventListener('click', dropHint);
+        window.addEventListener('scroll', onHintScroll, {passive: true});
       }
 
       /* anchor jumps: hand the easing engine the destination */
