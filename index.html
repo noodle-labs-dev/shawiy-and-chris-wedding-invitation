@@ -833,6 +833,45 @@
       }
     }
 
+    /* the states the counter becomes on the day, and ever after */
+    .count-msg {
+      display: block;
+      gap: 0;
+      margin-top: 26px
+    }
+
+    .msg-script {
+      margin: 0;
+      font-family: "Chester Chesire", "Allura", cursive;
+      font-size: clamp(2.6rem, 10vw, 4.4rem);
+      line-height: 1.05;
+      color: var(--navy);
+      animation: msg-in 1.4s cubic-bezier(.2, .8, .3, 1) both
+    }
+
+    .msg-sub {
+      margin: .5em 0 0;
+      font-family: "Californian FB", Georgia, serif;
+      font-weight: 700;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      font-size: .66rem;
+      color: var(--navy-soft);
+      animation: msg-in 1.4s cubic-bezier(.2, .8, .3, 1) .25s both
+    }
+
+    @keyframes msg-in {
+      from {
+        opacity: 0;
+        transform: translateY(14px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
     /* scroll cue */
     .cue {
       position: absolute;
@@ -2396,11 +2435,31 @@
         void el.offsetWidth;
         el.classList.add('tick');
       }
+      /* The link outlives the day, so the counter has three lives: counting
+         down, celebrating, then a keepsake. Both instants are pinned to
+         Manila time so every guest sees the same state. */
+      var partyEnds = new Date('2026-12-05T23:59:59+08:00').getTime();
+
+      function message(html) {
+        var el = document.getElementById('count');
+        el.classList.add('count-msg');
+        el.innerHTML = html;
+      }
+
       function tick() {
-        var diff = weddingAt - Date.now();
+        var now = Date.now();
+        var diff = weddingAt - now;
         if (diff <= 0) {
-          document.getElementById('count').innerHTML =
-            '<div style="min-width:auto"><b style="font-size:clamp(1.3rem,5vw,1.9rem)">Today is the day</b></div>';
+          if (now <= partyEnds) {
+            message('<p class="msg-script">Today is the day</p>' +
+              '<p class="msg-sub">The celebration has begun</p>');
+          } else {
+            message('<p class="msg-script">We’re Married</p>' +
+              '<p class="msg-sub">December 05, 2026</p>');
+            /* "Save the Date" has nothing left to ask for once the date has passed */
+            var heading = document.querySelector('.hero h1');
+            if (heading) heading.textContent = 'We said I do';
+          }
           return;
         }
         var s = Math.floor(diff / 1000);
