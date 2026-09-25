@@ -310,12 +310,24 @@
       border-color: var(--navy)
     }
 
+    /* A true page footer, below the last card and outside its frame. The band
+       inside the frame is only ~10px on a phone, too tight to sit in. */
     .credit {
-      margin-top: 2.4em;
+      margin: 0;
+      padding: 20px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+      text-align: center;
+      background: var(--paper);
       font-size: .72rem;
       letter-spacing: .06em;
       color: var(--navy-soft);
       opacity: .65;
+    }
+
+    @media (max-width:560px) {
+      .credit {
+        font-size: .66rem;
+        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px))
+      }
     }
 
     @media (max-width:560px) {
@@ -2081,9 +2093,10 @@
         alt="S C monogram">
       <p class="script thanks rv">See you there</p>
       <p class="date rv">December 05, 2026</p>
-      <p class="credit rv">Track: The Moment — Hamthan Jess</p>
     </div>
   </section>
+
+  <footer class="credit">Track: The Moment — Hamthan Jess</footer>
 
   <audio id="bgm" src="music/bg.mp3" preload="none" loop></audio>
 
