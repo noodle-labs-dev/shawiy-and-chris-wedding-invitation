@@ -2183,8 +2183,13 @@
         maxY = Math.max(0, document.documentElement.scrollHeight - vh);
         var y = window.scrollY || 0;
         florals.forEach(function (f) {
-          var r = f.getBoundingClientRect();
-          f._mid = r.top + y + r.height / 2;
+          /* Measured from layout offsets, never getBoundingClientRect: the
+             rect carries both the parallax offset we applied and whatever
+             phase the sway animation is in, so re-measuring from it folds
+             those into the anchor and the florals creep a little each time. */
+          var top = 0, el = f;
+          while (el) { top += el.offsetTop; el = el.offsetParent; }
+          f._mid = top + f.offsetHeight / 2;
           f._k = (f.className.indexOf('tl') > -1 || f.className.indexOf('tr') > -1) ? 0.05 : 0.032;
         });
         pageTops = pages.map(function (p) {return Math.round(p.getBoundingClientRect().top + y);});
