@@ -1048,6 +1048,90 @@
       color: var(--navy)
     }
 
+    .maps {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 18px
+    }
+
+    .maps a {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 16px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .55);
+      color: var(--navy);
+      text-decoration: none;
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: clamp(.78rem, 2.1vw, .92rem);
+      letter-spacing: .04em;
+      white-space: nowrap;
+      transition: background .3s ease, color .3s ease, border-color .3s ease,
+        transform .3s cubic-bezier(.2, .8, .3, 1), box-shadow .3s ease;
+    }
+
+    .maps a svg {
+      width: 15px;
+      height: 15px;
+      flex: none
+    }
+
+    /* lifts like paper rather than inverting: a solid navy fill reads as a
+       blue blob against the florals and fights the rest of the page */
+    .maps a:hover {
+      background: #fff;
+      color: var(--navy);
+      border-color: var(--navy);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(5, 26, 62, .16)
+    }
+
+    .maps a:active {
+      transform: translateY(0);
+      box-shadow: 0 3px 8px rgba(5, 26, 62, .14)
+    }
+
+    .maps a:focus-visible {
+      outline: 2px solid var(--navy);
+      outline-offset: 3px
+    }
+
+    /* Each app is only offered where it can actually open. Both are hidden by
+       default and revealed by script, so a guest never gets a dead button. */
+    .maps .apple-only,
+    .maps .mobile-only {
+      display: none
+    }
+
+    .maps.is-apple .apple-only,
+    .maps.is-mobile .mobile-only {
+      display: inline-flex
+    }
+
+    /* three pills have to fit the card at 375px without clipping */
+    @media (max-width:430px) {
+      .maps {
+        gap: 7px;
+        margin-top: 15px
+      }
+
+      .maps a {
+        padding: 7px 11px;
+        font-size: .74rem;
+        letter-spacing: .02em;
+        gap: 5px
+      }
+
+      .maps a svg {
+        width: 13px;
+        height: 13px
+      }
+    }
+
     .venue a {
       color: inherit;
       text-decoration: none;
@@ -1837,8 +1921,15 @@
       </div>
       <div class="venue rv">
         <b class="caps">Hillbarn Tagaytay</b>
-        <small><a href="https://maps.google.com/?q=Hillbarn+Tagaytay+Daang+Luma+Tagaytay+City" target="_blank"
-            rel="noopener">Daang Luma, Tagaytay City, 4120 Cavite</a></small>
+        <small>Daang Luma, Tagaytay City, 4120 Cavite</small>
+        <nav class="maps" aria-label="Directions to the venue">
+          <a href="https://www.google.com/maps/search/?api=1&amp;query=Hillbarn+Tagaytay+Events+Place"
+             target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> Google Maps</a>
+          <a class="mobile-only" href="https://waze.com/ul?ll=14.1202741%2C120.9353931&amp;navigate=yes"
+             target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> Waze</a>
+          <a class="apple-only" href="https://maps.apple.com/?ll=14.1202741,120.9353931&amp;q=Hillbarn%20Tagaytay&amp;t=m"
+             target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> Apple Maps</a>
+        </nav>
       </div>
     </div>
   </section>
@@ -2325,6 +2416,21 @@
       }
       up.addEventListener('click', function () {step(-1);});
       down.addEventListener('click', function () {step(1);});
+
+      /* Apple Maps only where it can actually open the app */
+      (function () {
+        var nav = document.querySelector('.maps');
+        if (!nav) return;
+        var ua = navigator.userAgent || '';
+        var touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        var apple = /iPad|iPhone|iPod|Macintosh/.test(ua) ||
+          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        /* Waze on a desktop only opens its web map, which is worse than the
+           Google link right beside it — so it is offered on handsets only. */
+        var mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || touch;
+        if (apple) nav.classList.add('is-apple');
+        if (mobile) nav.classList.add('is-mobile');
+      })();
 
       /* ── background music ───────────────────────────── */
       var audio = document.getElementById('bgm');
